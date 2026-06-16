@@ -3,13 +3,13 @@ import sys
 from colorama import Fore, Style, init
 
 print(Fore.YELLOW + "Welcome to the Game Centre!\n" + Style.RESET_ALL)
-target = "Balin"
+target = "Caleb"
 
 print("Please answer the following questions:")
 name = input("What is your name? ")
 
 if name == target:
-    print("Hi Balin, you're not on our list.") #there is no list balin
+    print("Hi caleb, you have a BMI of 21 ewwwww fatty!.") #there is no list balin
     time.sleep(1.2)
     print("which means...")
     time.sleep(1.2)
@@ -23,7 +23,7 @@ def quiz():
     lives = 3
     heart = "❤︎"
     score = 0
-    print(f"Current Lives: {heart * lives}")
+    print(f"\nCurrent Lives: {heart * lives}")
     #question 1
     answer = input(Fore.RED + "How many planets are in the solar system? " + Style.RESET_ALL)
 
@@ -202,6 +202,13 @@ age = input("Enter your age: ")
 
 if int(age) >= 18:
     print(Fore.BLUE + "Welcome to the program. Answers are case sensitive, answer with the first letter in capital. If an answer has multiple words, answer the important words in capital." + Style.RESET_ALL)
+    time.sleep(1)
+    print(Fore.BLUE + "Booting up the quiz")
+    for i in range(3):
+        time.sleep(.5)
+        sys.stdout.write('.')
+        sys.stdout.flush()
+    time.sleep(1)
     quiz()
 
 else:
@@ -211,7 +218,11 @@ else:
 while True:
     user_input = input("Type 'exit' to quit: ")
     if user_input.lower() == "exit":
-        print("Closing program...")
-        time.sleep(3)
+        print("Closing program")
+        for i in range(3):
+            time.sleep(.5)
+            sys.stdout.write('.')
+            sys.stdout.flush()
+        time.sleep(1)
         break
     sys.exit()
