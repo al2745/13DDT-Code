@@ -1,40 +1,53 @@
 from tkinter import *
-import openai
-print(openai.__version__)
-from openai import OpenAI
+from anthropic import Anthropic
+import time
+import requests
+import os
 
-client = OpenAI(
-  api_key="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"
+client = Anthropic(
+  api_key = ""
 )
 
-response = client.responses.create(
-  model="gpt-5",
-  input="write a haiku about ai",
-  store=True,
+def CheckFakeNews():
+
+  print("Test: Button is working.")
+
+  article = news_text.get("1.0", END)
+
+  prompt = f"""
+You are now a fake news analyser.
+Analyse the following news article (it may be provided as a link or in text form).
+
+Record:
+1. A reliability score from 1-100
+2. If the article is Likely Real, Suspicious, or Likely Fake
+3. Suspicious phrasing
+4. Brief explanation
+
+This is the article you will be analysing:
+{article}
+"""
+
+  message = client.messages.create(
+  model = "claude-sonnet-4-5",
+  max_tokens = 300,
+  messages = [
+    {
+      "role": "user",
+      "content": prompt
+    }
+  ]
 )
 
-print(response.output_text);
+  print(message.content[0].text)
 
-def CheckNews():
-    fake_words = [
-    "alien",
-    "ufo",
-    "conspiracy",
-    "hoax",
-    "miracle",
-    "secret",
-    "shocking",
-    "unbelievable",
-    "exposed",
-    "clickbait",
-    "scandal",
-    "coverup",
-    "mind-control",
-    "government lies",
-    "cure-all",
-    "100% proof",
-    "guaranteed",
-    "breaking",
-    "sensational",
-    "outrageous"
-]
+root = Tk()
+news_text = Text(root, height=10, width=50) 
+news_text.pack()
+
+Button(
+  root, text="Check Fake News", command=CheckFakeNews 
+).pack()
+
+root.mainloop()
+
