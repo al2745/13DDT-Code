@@ -3,9 +3,14 @@ from anthropic import Anthropic
 import time
 import requests
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+print("API Key found:", os.getenv("ANTHROPIC_API_KEY"))
 
 client = Anthropic(
-  api_key = ""
+  api_key = os.getenv("ANTHROPIC_API_KEY")
 )
 
 def CheckFakeNews():
