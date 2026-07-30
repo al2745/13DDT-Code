@@ -55,6 +55,3 @@ Button(
 ).pack()
 
 root.mainloop()
-
-hi test
-
