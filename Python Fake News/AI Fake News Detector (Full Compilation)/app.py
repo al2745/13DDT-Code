@@ -1,38 +1,17 @@
-### IMPORTS
-
-
-
 import tkinter
 from tkinter import ttk
-from tkinter import PhotoImage
 from PIL import Image
 from tkinter import *
 import customtkinter as ctk
-from anthropic import Anthropic
-import time
-import requests
-import os
-from dotenv import load_dotenv
 import sqlite3
-from bs4 import BeautifulSoup 
-#importing all external modules that will be needed for the program, most are added along the way for debugging or improvement purposes
-
-
-
-### CLAUDE API SET UP, MAIN FUNCTION, AND DATABASE
-
-
-
-load_dotenv() #load environmental variables from os.environ, reads .env file
-
-#store anthropic api in 'client' after getting it from the computer operating sys
-client = Anthropic(
-  api_key = os.getenv("DDT_API_KEY")
-)
+from detection_engine import url_mode #can now use the url function from detection_engine.py
+from claude import analyse_article #can now use analyse_article here from claude.py
 
 database = sqlite3.connect("fake_news.db")#automatically create fake news database
 cursor = database.cursor() #object tht carries out commands
-cursor
+
+  #display error
+
 #get cursor to tell SQLite to create table only if a current "history" table does not exist, coming in 3 columns: id, article, and AI response
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS history(
@@ -48,29 +27,16 @@ database.commit() #save changes permanently to sqlite
 analysis_mode = "Content" #current analysis mode, can vary
 
 #runs whenever user changes modes from notebook
-def ModeChange(event):
+def mode_change(event):
   global analysis_mode
   analysis_mode = notebook.tab(notebook.select(), "text")
 
-#downloads html content from article site and converts it into text format, allowing claude to analyse url's
-def URLMode(url):
-  webpage = requests.get(url) #ask webpage for html
-  bs = BeautifulSoup(webpage.text, "html.parser") #converts into a format python can read
-  paragraphs = bs.find_all("p") #filtering through paragraphs, makes claudes job easier
-  full_article = "" #compile everything as one string
-
-  for paragraph in paragraphs: #loops through every paragraph on the page
-    full_article += paragraph.get_text() + "\n" #continually adds paragraphs inside full_article with a line inbetween
-  return full_article #returns final text, this is the one claude reads
-
-
-### Main function for checking articles
-def CheckFakeNews():
+def check_fake_news():
   print("Button working") #only in terminal (i used for debugging so its easier)
 
   if analysis_mode == "URL":
     url = news_text.get("1.0", END).strip() #retrieve from news_text, 1st line, character 0
-    article = URLMode(url)
+    article = url_mode(url)
   else:
     article = news_text.get("1.0", END)
 
@@ -98,6 +64,7 @@ Rules:
 2. Do not use the heading "Fake News Analysis"
 3. Do not repeat information
 4. Do not refer to the analysis mode
+5. If user input does not relate to news, articles, or validating sources, respond exactly as "Invalid input, please present an appropriate prompt relating to my designed purpose of validating news articles."
 
 The maximum response length is {token_amount.get()} tokens.
 This is the article you will be analysing:
@@ -105,30 +72,13 @@ This is the article you will be analysing:
 """
 #""" quotation for large text, f string to include {article} ad {token_amount} without being printed as a string, prompt is set as the text so the AI gets 'prompt' before the user inputs their article
 
-
-  message = client.messages.create(
-  model = "claude-haiku-4-5-20251001", #claude sonnet model, avoiding fable because of obscurity
-  max_tokens = token_amount.get(), #tokens the AI uses to respond, lesser tokens = reduce need to purchase restore tokens (newly added slider)
-  messages = [
-    {
-      "role": "user", #AI knows prompt is from user
-      "content": prompt #AI reads this as initial content
-    }
-  ]
-)
-
-  print(message.content) #fixed claude from returning thinkingblock instead of textblock
-
-  response = "No response received" #returns this as default if claude does not return any text
-  for block in message.content: #set up loop
-    if hasattr(block, "text"): #does current text block have "text" attribute? yes = true, no = false
-      response = block.text #store text from claude as "response"
-      break #response found = stop loop
+  response = analyse_article(prompt, token_amount.get())
 
   
   response_text.configure(state="normal") #set to normal before AI responds or it can't edit the textbox
   response_text.delete("1.0", END) #delete from line 1 - character 0, stop deleting at END of textbox
-  response_text.insert(END, response) #insert response into response textbox
+
+  response_text.insert(END, str(response)) #insert response into response textbox
 
   #tell cursor to put AI response along with article in sqlite
   cursor.execute(
@@ -141,24 +91,24 @@ This is the article you will be analysing:
   response_text.configure(state="disabled") #lock accessability once AI outputs response
 
 ###Two functions to increase or decrease tokens in slider by 1
-def IncreaseToken():
+def increase_token():
   current_token = token_amount.get()
   if current_token < 500:
     addten_token = current_token + 10
     token_amount.set(addten_token)
 
-    AmountUpdated(addten_token)
+    amount_updated(addten_token)
 
-def DecreaseToken():
+def decrease_token():
   current_token = token_amount.get() 
   if current_token >100: #prevent it going under 100 tokens
     addten_token = current_token - 10
     token_amount.set(addten_token) #only works once verified current token amount >50
 
-    AmountUpdated(addten_token)
+    amount_updated(addten_token)
 
 #updating text depending on current token amount
-def AmountUpdated(value):
+def amount_updated(value):
   tokens = token_amount.get()
 
   if tokens <= 230:
@@ -169,11 +119,6 @@ def AmountUpdated(value):
 
   else:
     ulabel.configure(text = "LARGE RESPONSE", font = ("Arial", 15, "bold"))
-
-
-### TKINTER AND DISPLAY SETTINGS ###
-
-
 
 root = Tk() #create main tkinter window
 root.configure(bg="#D2B48C") #program background colour, went for newspaper looking biege
@@ -196,7 +141,7 @@ notebook.add(title, text = "Title")
 notebook.add(all, text = "All")
 notebook.pack()
 
-notebook.bind("<<NotebookTabChanged>>", ModeChange)
+notebook.bind("<<NotebookTabChanged>>", mode_change)
 
 #labels
 Label(content, width = 2, height = 1).pack()
@@ -226,16 +171,19 @@ slider_label.pack() #show label
 ulabel = ctk.CTkLabel(root, text = "MEDIUM RESPONSE", font = ("Arial", 15, "bold")) #default text for updater label
 ulabel.pack()
 
-tslider = ctk.CTkSlider(root, from_=100, to=500, variable=token_amount, orientation = "horizontal", width = 300, number_of_steps= 40, command = AmountUpdated) #orientation to horizontal, default is set to display down, display settings
+tslider = ctk.CTkSlider(root, from_=100, to=500, variable=token_amount, orientation = "horizontal", width = 300, number_of_steps= 40, command = amount_updated) #orientation to horizontal, default is set to display down, display settings
 tslider.pack(pady = 5) #display slider
 
-up_but = ctk.CTkButton(root, text = "+10", fg_color = "#144870", corner_radius = 25, command = IncreaseToken, hover_color = "#0C395B", width = 20) #display settings, and link with function
-up_but.pack(pady = 5) #display up button
+but_frame = ctk.CTkFrame(root, fg_color= "transparent")
+but_frame.pack(pady = 5)
 
-down_but = ctk.CTkButton(root, text="-10", fg_color = "#144870", corner_radius = 25, command = DecreaseToken, hover_color = "#0C395B", width = 20) #display settings, and link with function
-down_but.pack(pady = 5) #display down button
+down_but = ctk.CTkButton(root, text="-10", fg_color = "#144870", corner_radius = 25, command = decrease_token, hover_color = "#0C395B", width = 20) #display settings, and link with function
+down_but.pack(pady = 3, expand = TRUE, in_= but_frame, side = LEFT) #display down button
 
-ctk.CTkButton(root, text="ANALYSE ARTICLE 🔍", font = ("Arial", 20, "bold"), fg_color = "#144870", corner_radius = 25, height = 50, command=CheckFakeNews, hover_color = "#0C395B").pack(pady = 10) #text, link with CheckFakeNews function
+up_but = ctk.CTkButton(root, text = "+10", fg_color = "#144870", corner_radius = 25, command = increase_token, hover_color = "#0C395B", width = 20) #display settings, and link with function
+up_but.pack(pady = 3, in_ = but_frame, side = LEFT) #display up button
+
+ctk.CTkButton(root, text="ANALYSE ARTICLE 🔍", font = ("Arial", 20, "bold"), fg_color = "#144870", corner_radius = 25, height = 50, command=check_fake_news, hover_color = "#0C395B").pack(pady = 10) #text, link with check_fake_news function
 
 root.mainloop() #starts event loop
 
